@@ -110,7 +110,7 @@ function getWeekDays() {
 }
 
 export default function MealApp() {
-  const [tab, setTab] = useState('stock');
+  const [tab, setTab] = useState('plan');
   const [stocks, setStocks] = useState(() => {
     const saved = storage.get('meal-stock-v2');
     if (saved) return saved;
@@ -200,20 +200,6 @@ export default function MealApp() {
       <div className="sticky top-0 z-10 bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-900">
         <div className="px-5 pt-12 pb-3 flex gap-2">
           <button
-            onClick={() => setTab('stock')}
-            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-semibold text-sm transition-colors ${
-              tab === 'stock' ? 'bg-white text-black' : 'bg-zinc-900 text-zinc-400'
-            }`}
-          >
-            <Package size={16} strokeWidth={2.5} />
-            재고
-            {reorderItems.length > 0 && (
-              <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-500 text-white">
-                {reorderItems.length}
-              </span>
-            )}
-          </button>
-          <button
             onClick={() => setTab('plan')}
             className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-semibold text-sm transition-colors ${
               tab === 'plan' ? 'bg-white text-black' : 'bg-zinc-900 text-zinc-400'
@@ -226,6 +212,20 @@ export default function MealApp() {
             }`}>
               {mealsCompleted}/4
             </span>
+          </button>
+          <button
+            onClick={() => setTab('stock')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-semibold text-sm transition-colors ${
+              tab === 'stock' ? 'bg-white text-black' : 'bg-zinc-900 text-zinc-400'
+            }`}
+          >
+            <Package size={16} strokeWidth={2.5} />
+            재고
+            {reorderItems.length > 0 && (
+              <span className="text-xs px-1.5 py-0.5 rounded-full bg-red-500 text-white">
+                {reorderItems.length}
+              </span>
+            )}
           </button>
         </div>
       </div>
