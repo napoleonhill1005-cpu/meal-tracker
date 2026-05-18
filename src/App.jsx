@@ -8,10 +8,10 @@ const ITEMS = [
   { id: 'chicken', name: '닭가슴살', unit: '팩', fullStock: 24, dailyUse: 2, baseThreshold: 3, link: 'https://link.coupang.com/a/dGuAv6vEpo' },
   { id: 'beef', name: '우둔살', unit: '팩', fullStock: 20, dailyUse: 1, baseThreshold: 5, link: 'https://link.coupang.com/a/dGuDttnF5o' },
   { id: 'yogurt', name: '그릭요거트', unit: 'g', fullStock: 1000, dailyUse: 100, baseThreshold: 3, link: 'https://link.coupang.com/a/dGuEtLjxca' },
-  { id: 'banana', name: '바나나', unit: 'g', fullStock: 1000, dailyUse: 100, baseThreshold: 3, link: 'https://link.coupang.com/a/dGuFEDhz52' },
-  { id: 'bread', name: '식빵', unit: 'g', fullStock: 660, dailyUse: 80, baseThreshold: 2, link: 'https://link.coupang.com/a/dGuGCkCpA4' },
+  { id: 'banana', name: '바나나', unit: 'g', fullStock: 1000, dailyUse: 200, baseThreshold: 3, link: 'https://link.coupang.com/a/dGuFEDhz52' },
+  { id: 'bread', name: '식빵', unit: 'g', fullStock: 660, dailyUse: 160, baseThreshold: 2, link: 'https://link.coupang.com/a/dGuGCkCpA4' },
   { id: 'veggies', name: '냉동 야채', unit: 'g', fullStock: 3000, dailyUse: 100, baseThreshold: 5, link: 'https://link.coupang.com/a/dGuUGTcIMe' },
-  { id: 'pb', name: '땅콩버터', unit: 'g', fullStock: 450, dailyUse: 20, baseThreshold: 5, link: 'https://link.coupang.com/a/dGuCcMHoSi' },
+  { id: 'pb', name: '땅콩버터', unit: 'g', fullStock: 450, dailyUse: 40, baseThreshold: 5, link: 'https://link.coupang.com/a/dGuCcMHoSi' },
   { id: 'almond', name: '아몬드', unit: 'g', fullStock: 1000, dailyUse: 10, baseThreshold: 10, link: 'https://link.coupang.com/a/dGuWWEnuvI' },
   { id: 'protein', name: '프로틴 (매스게이너)', unit: 'g', fullStock: 5000, dailyUse: 30, baseThreshold: 14, link: 'https://www.myprotein.co.kr/p/sports-nutrition/impact-whey-mass-gainer/10529988/?variation=11372978' }
 ].map(i => ({ ...i, thresholdDays: i.baseThreshold + LEAD_TIME_DAYS }));
@@ -21,34 +21,42 @@ const MEAL_PLAN = [
     id: 'postworkout',
     label: '운동 후',
     items: [
-      { name: '오넛티 땅콩버터', amount: '20g' },
-      { name: '식빵', amount: '2조각' },
-      { name: '랩노쉬 쉐이크', amount: '1잔' }
+      { name: '오넛티 땅콩버터', amount: '20g', itemId: 'pb', deduct: 20 },
+      { name: '식빵', amount: '2조각', itemId: 'bread', deduct: 80 },
+      { name: '랩노쉬 쉐이크', amount: '1잔', itemId: 'protein', deduct: 30 }
     ]
   },
   {
     id: 'meal1',
     label: 'MEAL 1',
     items: [
-      { name: '햇반', amount: '210g' },
-      { name: '닭가슴살', amount: '200g' }
+      { name: '햇반', amount: '250g', itemId: 'hetbap', deduct: 1 },
+      { name: '닭가슴살', amount: '200g', itemId: 'chicken', deduct: 2 }
     ]
   },
   {
     id: 'meal2',
     label: 'MEAL 2',
     items: [
-      { name: '햇반', amount: '210g' },
-      { name: '우둔살', amount: '200g' }
+      { name: '햇반', amount: '230g', itemId: 'hetbap', deduct: 1 },
+      { name: '우둔살', amount: '150g', itemId: 'beef', deduct: 1 },
+      { name: '올리브오일', amount: '10g' }
     ]
   },
   {
     id: 'meal3',
     label: 'MEAL 3',
     items: [
-      { name: '그릭요거트', amount: '100g' },
-      { name: '아몬드', amount: '10g' },
-      { name: '바나나', amount: '100g' }
+      { name: '식빵', amount: '2조각', itemId: 'bread', deduct: 80 },
+      { name: '오넛티 땅콩버터', amount: '20g', itemId: 'pb', deduct: 20 }
+    ]
+  },
+  {
+    id: 'meal4',
+    label: 'MEAL 4',
+    items: [
+      { name: '그릭요거트', amount: '100g', itemId: 'yogurt', deduct: 100 },
+      { name: '바나나', amount: '200g', itemId: 'banana', deduct: 200 }
     ]
   }
 ];
@@ -58,7 +66,7 @@ const ANYTIME = [
   { name: '김치, 김', amount: '섭취 가능' }
 ];
 
-const MACROS = { carb: 250, protein: 155, fat: 50, kcal: 2100 };
+const MACROS = { carb: 300, protein: 155, fat: 56, kcal: 2400 };
 
 const storage = {
   get(key) {
@@ -77,13 +85,30 @@ function formatNum(n, unit) {
   return Number.isInteger(n) ? n.toString() : n.toFixed(1);
 }
 
+const DAY_RESET_HOUR = 7; // 오전 7시에 새 날 시작
+
 function toDateStr(d) {
   return d.toISOString().slice(0, 10);
 }
 
+// 식단 기준일: 새벽 7시 이전은 전날로 취급
+function getMealDate() {
+  const now = new Date();
+  if (now.getHours() < DAY_RESET_HOUR) {
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday;
+  }
+  return now;
+}
+
+function getMealDateStr() {
+  return toDateStr(getMealDate());
+}
+
 function getStreak(log) {
   if (!log || log.length === 0) return 0;
-  const today = new Date();
+  const today = getMealDate();
   today.setHours(0, 0, 0, 0);
   let streak = 0;
   for (let i = 0; i < 365; i++) {
@@ -96,7 +121,7 @@ function getStreak(log) {
 }
 
 function getWeekDays() {
-  const now = new Date();
+  const now = getMealDate();
   now.setHours(0, 0, 0, 0);
   const day = now.getDay();
   const diff = day === 0 ? 6 : day - 1;
@@ -120,7 +145,7 @@ export default function MealApp() {
   });
   const [log, setLog] = useState(() => storage.get('meal-log-v2') || []);
   const [mealCheck, setMealCheck] = useState(() => {
-    return storage.get(`meal-check-${toDateStr(new Date())}`) || {};
+    return storage.get(`meal-check-${getMealDateStr()}`) || {};
   });
 
   function saveStocks(newStocks) {
@@ -133,7 +158,7 @@ export default function MealApp() {
   }
   function saveMealCheck(newCheck) {
     setMealCheck(newCheck);
-    storage.set(`meal-check-${toDateStr(new Date())}`, newCheck);
+    storage.set(`meal-check-${getMealDateStr()}`, newCheck);
   }
 
   function days(item) {
@@ -154,43 +179,96 @@ export default function MealApp() {
   function refill(item) { saveStocks({ ...stocks, [item.id]: item.fullStock }); }
 
   function consumeAll() {
+    // 아직 체크 안 된 끼니의 품목만 추가 차감
     const newStocks = { ...stocks };
-    ITEMS.forEach(item => {
-      const cur = newStocks[item.id] ?? item.fullStock;
-      newStocks[item.id] = Math.max(0, cur - item.dailyUse);
+    const newCheck = { ...mealCheck };
+    MEAL_PLAN.forEach(meal => {
+      if (newCheck[meal.id]) return; // 이미 체크된 끼니는 건너뜀
+      newCheck[meal.id] = true;
+      meal.items.forEach(item => {
+        if (!item.itemId) return;
+        const current = newStocks[item.itemId] ?? 0;
+        newStocks[item.itemId] = Math.max(0, current - item.deduct);
+      });
     });
     saveStocks(newStocks);
-    const today = toDateStr(new Date());
+    saveMealCheck(newCheck);
+
+    const today = getMealDateStr();
     if (!log.includes(today)) saveLog([...log, today].sort());
-    const allChecked = {};
-    MEAL_PLAN.forEach(m => allChecked[m.id] = true);
-    saveMealCheck(allChecked);
   }
 
   function undoToday() {
-    const today = toDateStr(new Date());
+    const today = getMealDateStr();
     saveLog(log.filter(d => d !== today));
+
+    // 체크된 끼니의 품목만 복구
     const newStocks = { ...stocks };
-    ITEMS.forEach(item => {
-      const cur = newStocks[item.id] ?? 0;
-      newStocks[item.id] = Math.min(item.fullStock, cur + item.dailyUse);
+    MEAL_PLAN.forEach(meal => {
+      if (!mealCheck[meal.id]) return;
+      meal.items.forEach(item => {
+        if (!item.itemId) return;
+        const current = newStocks[item.itemId] ?? 0;
+        const def = ITEMS.find(i => i.id === item.itemId);
+        const max = def ? def.fullStock : current + item.deduct;
+        newStocks[item.itemId] = Math.min(max, current + item.deduct);
+      });
     });
     saveStocks(newStocks);
     saveMealCheck({});
   }
 
+  // 새벽 7시 지나면 자동으로 새 날 식단 체크 로드
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const currentDateStr = getMealDateStr();
+      const stored = storage.get(`meal-check-${currentDateStr}`) || {};
+      setMealCheck(prev => {
+        // 다른 날의 체크가 있으면 새 날로 교체
+        const prevKeys = Object.keys(prev).join(',');
+        const newKeys = Object.keys(stored).join(',');
+        if (prevKeys !== newKeys) return stored;
+        return prev;
+      });
+    }, 60000); // 1분마다
+    return () => clearInterval(interval);
+  }, []);
+
   function toggleMeal(mealId) {
-    saveMealCheck({ ...mealCheck, [mealId]: !mealCheck[mealId] });
+    const meal = MEAL_PLAN.find(m => m.id === mealId);
+    if (!meal) return;
+    const wasChecked = !!mealCheck[mealId];
+    const willBeChecked = !wasChecked;
+
+    // 식단 체크 토글
+    saveMealCheck({ ...mealCheck, [mealId]: willBeChecked });
+
+    // 재고 자동 차감/복구
+    const newStocks = { ...stocks };
+    meal.items.forEach(item => {
+      if (!item.itemId) return;
+      const current = newStocks[item.itemId] ?? 0;
+      if (willBeChecked) {
+        // 체크 → 차감
+        newStocks[item.itemId] = Math.max(0, current - item.deduct);
+      } else {
+        // 체크 해제 → 복구
+        const def = ITEMS.find(i => i.id === item.itemId);
+        const max = def ? def.fullStock : current + item.deduct;
+        newStocks[item.itemId] = Math.min(max, current + item.deduct);
+      }
+    });
+    saveStocks(newStocks);
   }
 
   const reorderItems = ITEMS.filter(i => status(i) === 'reorder');
-  const today = toDateStr(new Date());
+  const today = getMealDateStr();
   const completedToday = log.includes(today);
   const streak = getStreak(log);
   const weekDays = getWeekDays();
   const weekCompleted = weekDays.filter(d => log.includes(toDateStr(d))).length;
   const todayIdx = (() => {
-    const day = new Date().getDay();
+    const day = getMealDate().getDay();
     return day === 0 ? 6 : day - 1;
   })();
   const mealsCompleted = MEAL_PLAN.filter(m => mealCheck[m.id]).length;
@@ -210,7 +288,7 @@ export default function MealApp() {
             <span className={`text-xs px-1.5 py-0.5 rounded-full ${
               tab === 'plan' ? 'bg-zinc-200 text-zinc-700' : 'bg-zinc-800 text-zinc-500'
             }`}>
-              {mealsCompleted}/4
+              {mealsCompleted}/{MEAL_PLAN.length}
             </span>
           </button>
           <button
@@ -498,8 +576,9 @@ function PlanView({ mealCheck, toggleMeal }) {
       </div>
 
       <div className="px-5 mt-6 text-xs text-zinc-600 leading-relaxed">
-        <div>· 각 끼니 탭하면 완료 체크</div>
-        <div>· 자정 지나면 자동으로 초기화</div>
+        <div>· 끼니 탭하면 재고에서 자동 차감</div>
+        <div>· 체크 해제하면 재고 복구</div>
+        <div>· 매일 오전 7시에 자동으로 초기화</div>
       </div>
     </>
   );
